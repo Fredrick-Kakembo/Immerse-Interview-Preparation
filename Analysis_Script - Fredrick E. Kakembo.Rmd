@@ -1,0 +1,414 @@
+---
+title: "Immerse Interview Prep"
+author: "Fredrick Kakembo"
+date: "2022-05-7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Loading the data
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+data <- read.csv("applicant_dataset_v2.csv")
+
+```
+
+# Check the size of the data
+
+```{r}
+dim(data)
+
+colnames(data)
+```
+
+
+```{r}
+#Deal with the categorical data to factors
+data$agecat <- as.factor(data$agecat)
+data$siteid <- as.factor(data$siteid)
+data$BSdich <- as.factor(data$BSdich)
+data$LAMP <- as.factor(data$LAMP)
+data$anymalaria <- as.factor(data$anymalaria)
+```
+
+```{r}
+attach(data)
+```
+
+
+```{r}
+head(data)
+```
+
+```{r}
+# id column
+
+#data$id
+length(data$id)
+length(unique(data$id))
+```
+
+### 1. Age Category
+
+```{r}
+table(agecat)
+
+sum(is.na(agecat))
+
+p <- ggplot(data = data, aes(agecat)) +
+  geom_bar(fill="steelblue") + ylim(c(0,600))
+
+#Reordering the categories to start with 6months
+p + scale_x_discrete(limits = c("6 months - < 5 years","5 years - < 11 years" ,">= 18 years")) +
+  geom_text(stat='count', aes(label=..count..), vjust=-1)+
+  theme_bw()
+```
+
+### 2. Site ID
+
+```{r}
+#Site
+table(siteid)
+sum(is.na(siteid))  #None missing
+
+ggplot(data = data, aes(siteid)) + geom_bar(fill="steelblue") +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.5)+
+  theme_bw()+ ylim(c(0,400))
+```
+
+
+### 3. blood smear result
+- 1 is positive, 0 is negative
+
+```{r}
+table(BSdich) # 1 is positive and 0 is negative
+
+sum(is.na(BSdich)) #Number of missing
+
+ggplot(data = data, aes(BSdich)) + geom_bar(fill="steelblue") +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.5) +
+  theme_bw() + ylim(c(0,815))
+```
+
+
+### 4. LAMP
+loop-mediated isothermal amplification result for submicroscopic P falciparum parasitemia. LAMP was only performed if blood smear was negative. 1 is positive, 0 is negative
+
+```{r}
+library(dplyr)
+#LAMP
+data_0 <- subset(data, BSdich == 0) #Subset data for only when BS is neg 
+dim(data_0)
+#View(data_0)
+
+table(data_0$LAMP)
+
+sum(is.na(data_0$LAMP)) #
+
+ggplot(data = data_0, aes(LAMP)) + geom_bar(fill="steelblue") +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.5)+
+  theme_bw() + ylim(c(0,400))
+
+
+### Just to be sure, LAMP was only performed when BSdich was negative
+data_1 <- subset(data, BSdich == 1) 
+table(data_1$LAMP)
+```
+
+
+### 5. anymalaria
+diagnosis of malaria was made on that date (clinical symptoms + positive blood smear). “1” is a diagnosis (case) of malaria, “0” is no malaria 
+
+```{r}
+table(anymalaria)
+sum(is.na(anymalaria))
+
+ggplot(data = data, aes(anymalaria)) + geom_bar(fill="steelblue") +
+  geom_text(stat='count', aes(label=..count..), vjust=-0.5)+
+  theme_bw() + ylim(c(0,1010))
+```
+
+## 1a. Site and age
+Do we have an even balance of the age categories sampled from each region?
+
+```{r}
+#SiteID and Agecat
+test2 <-   data %>%
+  group_by(siteid, agecat) %>%
+  summarize(t2.len = length(agecat)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = siteid, y = t2.len, fill = agecat)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") + ylim(0,220)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "SiteID", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd", "#2ca25f")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+## 2a Age category and BSdich
+Are people of a given age category likely to be positive for a BS
+
+```{r}
+# Agecat and BSdich
+test2 <-   data %>%
+  group_by(agecat, BSdich) %>%
+  summarize(t2.len = length(BSdich)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = agecat, y = t2.len, fill = BSdich)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") + ylim(0,400)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "Age Category", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+Confirm if there exists a difference; 
+
+H0: There is no link / relationship between age category and results of blood smear.
+
+H1: There is a link between age category and results of blood smear.
+
+```{r}
+table(agecat, BSdich)
+c = chisq.test(agecat,BSdich)
+c
+c$expected
+c$p.value
+```
+
+Since p-value is significant, we have enough evidence to reject the null hypothesis and conclude that there is a link (relationship) between age category and results of blood smear.
+
+~~ P-value is significant. We are likely to have most positive cases among 4-11 years, followed by more cases in 6months-5 years and least in individuals above 18 years ~~
+
+ Keep in mind that "statistically significant" does not always imply "meaningful" when using the chi-square test.
+
+
+
+##  2b agecat and anymalaria
+
+
+```{r}
+# Agecat and anymalaria
+test2 <-   data %>%
+  group_by(agecat, anymalaria) %>%
+  summarize(t2.len = length(anymalaria)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = agecat, y = t2.len, fill = anymalaria)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") + ylim(0,510)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "Age Category", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+Test significance if there is any relationship between Agecat and anymalaria
+
+```{r}
+table(agecat, anymalaria)
+c = chisq.test(agecat,anymalaria)
+c
+c$expected
+c$p.value
+```
+
+P-value is still significant, hence we can conclude there is a relationship between age category and one having malaria. 
+
+
+## 3 a  siteid and BS
+
+```{r}
+# siteid and BSdich
+test2 <-   data %>%
+  group_by(siteid, BSdich) %>%
+  summarize(t2.len = length(BSdich)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = siteid, y = t2.len, fill = BSdich)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") +  ylim(0,300)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "Site Location", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+# Check if this difference is significant
+
+```{r}
+table(siteid, BSdich)
+c = chisq.test(siteid,BSdich)
+c
+c$expected
+c$p.value
+```
+
+P-value is significant meaning there is a relationship between site location of a person and the result of the blood smear. Its more likely that people from Kanungu and Tororo will have positive blood smear than people from Jinja. 
+
+What about malaria diagnosis?
+
+## 3 b. siteid and anymalaria
+
+
+```{r}
+# siteid and anymalaria
+test2 <-   data %>%
+  group_by(siteid, anymalaria) %>%
+  summarize(t2.len = length(anymalaria)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = siteid, y = t2.len, fill = anymalaria)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") + ylim(0,350)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "Site Location", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+Confirm if the observed difference is significant
+
+```{r}
+table(siteid, anymalaria)
+c = chisq.test(siteid,anymalaria)
+#c
+c$expected
+c$p.value
+```
+
+p-value is significant, hence we conclude that there is a relation between site site location and someone having malaria. 
+
+
+## ageCat vs LAMP
+
+Qn: Are individuals of a given age category likely be have submicroscopic results
+
+```{r}
+detach(data)
+# Agecat and LAMP
+test2 <-   data_0 %>%
+  group_by(agecat, LAMP) %>%
+  summarize(t2.len = length(LAMP)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = agecat, y = t2.len, fill = LAMP)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") +  ylim(0,250)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "Age Category", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+Alot of data is missing from the group >=18
+
+Test the significance if any
+
+```{r}
+table(data_0$agecat, data_0$LAMP)
+c = chisq.test(data_0$agecat, data_0$LAMP)
+#c
+c$expected
+c$p.value
+```
+
+Its significance but level of significance is not that too strong like the previous
+
+
+
+
+## siteID vs LAMP
+
+
+```{r}
+# siteid and LAMP
+test2 <-   data_0 %>%
+  group_by(siteid, LAMP) %>%
+  summarize(t2.len = length(LAMP)) %>%
+  mutate(t2.prop = round(t2.len / sum(t2.len) * 100, 1))
+
+p22 <- ggplot(test2, aes(x = siteid, y = t2.len, fill = LAMP)) +  
+  geom_bar( stat = "identity", position = position_dodge(width = 0.9) , color="black") +  ylim(0,160)  +
+  geom_text(aes(label = paste(t2.prop, "%", sep = "")), 
+            position = position_dodge(width = 0.9), vjust = -0.8) + theme_bw() + 
+  theme(legend.position = "bottom") + labs(x = "Site Location", y = "Frequency Count") +
+  scale_fill_manual(values = c("#deebf7", "#3182bd")) +
+  theme( axis.text=element_text(size=11),text=element_text(size=12))
+
+p22
+```
+
+
+```{r}
+table(data_0$siteid, data_0$LAMP)
+c = chisq.test(data_0$siteid,data_0$LAMP)
+c
+c$expected
+c$p.value
+```
+
+P-value is still significant
+
+
+```{r}
+dim(na.omit(data_0))
+
+s <- na.omit(data_0[c("siteid", "LAMP")])
+dim(s)
+```
+
+```{r}
+table(s$siteid, s$LAMP)
+c = chisq.test(s$siteid,s$LAMP)
+c
+c$expected
+c$p.value
+
+```
+
+
+Note a limitatiob of chi square, When Sample size is small, the test is less trustworthy. However, with very large sample sizes, even relatively trivial relationships may be declared statistically significant. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
